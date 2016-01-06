@@ -22,11 +22,22 @@ instances allow you to to specify a set of terms, then generate several
 different types of test questions.
 
 All quizzes must subclass `pyquiz.Quiz` and include a `questions` method that
-returns an iterable of quizzable objects.
+returns an iterable of questions. Questions and Quizzes must subclass quizzable.
 
-> Quizzable objects implement the `__quiz__` method, which returns a
-markdown version of the quiz, and the `__check__` method, which accepts a list
-of answers and then returns results as markdown.
+> Quizzable objects implement the following:
+1. `__check__(self, responses)`, which accepts a single or list of responses,
+returns:
+```
+{
+  'score': 10,
+  'total': 12,
+  'passed': True
+}
+```
+1. `__score__(self)`, which returns a float score for this quizzable
+1. `__passed__(self)`, which returns a boolean for whether or not this quizzable
+was passed.
+1. `__total__(self)`, a float total for this quizzable
 
 **Standard Questions**
 
@@ -40,9 +51,9 @@ class YourQuiz(Quiz):
 
   def questions(self):
     """Returns an iterable of test questions."""
-    return [Question(
+    return [MultipleChoice(
       'Calculate the slope of y = 2x+3',
-      2, 3, 4, 5, 7)]  # assume 2 is the right answer
+      [2, 3, 4, 5, 7])]  # assume 2 is the right answer
 ```
 
 **Vocabulary**
@@ -61,8 +72,7 @@ class YourQuiz(Quiz):
 
   def questions(self):
     """Returns an iterable of test questions."""
-    v = self.vocabulary
-    return [v.multiple_choice()]
+    return [self.vocab.multipleChoice()*5]  # 5 randomly-generated MC questions
 ```
 
 `Question` instances take an additional `check` function as a keyword

@@ -10,9 +10,8 @@ deploy:
 	make clean
 
 install:
-	bash activate.sh && \
-		python setup.py install
+	bash install.sh
 
 run:
-	bash activate.sh && \
+	source activate.sh && \
 		python run.py

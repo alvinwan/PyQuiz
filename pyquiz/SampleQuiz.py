@@ -2,6 +2,8 @@ from .util import Quiz, Term
 
 class SampleQuiz(Quiz):
 
+    url = '/sample'
+
     def terms(self):
         return [
             Term('Github', '![Github](https://assets-cdn.github.com/images/modules/open_graph/github-mark.png)'),

@@ -1,6 +1,6 @@
-from flask import Flask, request
+from flask import Flask, request, render_template
 from importlib import import_module
-from util import files_by_tag, quiz, check, markdown_to_quiz
+from .util import files_by_tag, quiz, check, md2quiz, rq2responses
 
 app = Flask(__name__)
 
@@ -18,8 +18,13 @@ for path in files_by_tag('app'):
 def view_generator(q):
     def view():
         if request.method == 'POST':
-            return md2quiz(check(q, rq2responses(request)))
-        return md2quiz(quiz(q))
+            html = md2quiz(check(q, rq2responses(request)))
+        print(quiz(q))
+        html = md2quiz(quiz(q))
+        print('C')
+        return render_template('quiz.html', html=html)
+    view.__name__ = q.name
+    return view
 
 for quiz in quizzes:
     app.add_url_rule(quiz.url, quiz.name, view_generator(quiz),
