@@ -130,7 +130,7 @@ class Quiz(Quizzable):
         if not self.__checked:
             return self.initial_message
 
-        percent = score(self) * 100 // total(self)
+        percent = (score(self) * 100) // total(self)
         return self.failed_message.format(percent=percent,
             threshold=self.threshold) if not passing(self) else self.passed_message.format(percent=percent, code=self.generate_code())
 
@@ -189,6 +189,7 @@ class Quiz(Quizzable):
         for q in self.qs:
             q.shuffle()
         shuffle(self.qs)
+        self.id_questions()
 
     def terms(self):
         """Returns all vocabulary terms for a quiz"""
@@ -200,9 +201,13 @@ class Quiz(Quizzable):
             self.qs = questions
         elif not getattr(self, 'qs', None) or regenerate:
             self.qs = self.questions()
+        self.id_questions()
+        return self.qs
+
+    def id_questions(self):
+        """ids all questions"""
         for i, q in enumerate(self.qs):
             q._id = Question.ID_FORMAT % i
-        return self.qs
 
     def questions(self):
         """Returns all questions for a quiz"""
@@ -223,11 +228,11 @@ class Quiz(Quizzable):
 
     def __score__(self):
         """Compute score for quiz"""
-        return sum(map(score, self.__questions()))
+        return float(sum(map(score, self.__questions())))
 
     def __total__(self):
         """Compute total for quiz"""
-        return sum(map(total, self.__questions()))
+        return float(sum(map(total, self.__questions())))
 
     def __passing__(self):
         """Returns if quiz passed"""
@@ -588,7 +593,7 @@ def rq2responses(request):
         if request.form.get(name, None):
             responses.append(request.form[name])
         else:
-            responses.append('')
+            responses.append(None)
         i += 1
     return responses
 
