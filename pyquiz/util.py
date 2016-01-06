@@ -96,8 +96,17 @@ class Quizzable:
 class Quiz(Quizzable):
     """base quiz class"""
 
-    def __init__(self, source, questions=(), threshold=90, name=None,
-        code_filter=lambda code: True):
+    title = 'Quiz'
+    initial_message = 'Click check at the end to check your work. You have \
+    unlimited tries. Once you have passed, you will be given a custom code to \
+    prove completion.'
+    failed_message = 'You received {percent}%, but passing is {threshold}%. <a \
+    href="#" onclick="location.reload()">Try again?</a>'
+    passed_message = 'Congratulations! You have passed with {percent}%. Here is\
+    your code of completion: {code}'
+    code_filter = lambda self, code: code % 35 == 2
+
+    def __init__(self, source, questions=(), threshold=90, name=None):
         """
         Default constructor
 
@@ -105,15 +114,24 @@ class Quiz(Quizzable):
         """
 
         self.source = source
-        self.code_filter = code_filter
         self.vocab = Vocabulary(self.terms())
         self.qs = self.__questions(questions)
         self.name = name or self.__class__.__name__
         self.threshold = threshold
+        self.__checked = False
 
     def copy(self):
         """returns new copy of quiz"""
         return Quiz(self.qs, self.threshold, self.name, self.code_filter)
+
+    @property
+    def message(self):
+        if not self.__checked:
+            return self.initial_message
+
+        percent = score(self) * 100 // total(self)
+        return self.failed_message.format(percent=percent,
+            threshold=self.threshold) if not passing(self) else self.passed_message.format(percent=percent, code=self.generate_code())
 
     @staticmethod
     def from_json(json):
@@ -185,6 +203,7 @@ class Quiz(Quizzable):
 
     def __check__(self, responses):
         """Checks answers and returns JSON results"""
+        self.__checked = True
         if isinstance(responses, str):
             responses = [responses]
         for q, response in zip(self.__questions(), responses):
@@ -215,7 +234,7 @@ class Quiz(Quizzable):
         code = None
         while not code:
             _code = hash(getrandbits(128))
-            if self.filter_code(_code):
+            if self.code_filter(_code):
                 code = _code
         return code
 
@@ -334,7 +353,7 @@ class MultipleChoice(Question):
 
     def __init__(self, question, answer, choices, category=ONE_SELECTION,
         total=1, threshold=100, vocab=None, settings=None,
-        score=lambda choices, response: choices[0] == response, **kwargs):
+        score=lambda answer, response: int(answer == response), **kwargs):
         super(MultipleChoice, self).__init__(question, choices, score=score, **kwargs)
 
         self.__question = question
@@ -440,11 +459,11 @@ class Field:
 
     def display(self):
         if self.__type in ('radio', 'checkbox'):
-            if self.__response == self.__answer:
+            if self.__response == self.__label == self.__answer:
                 message = 'Correct answer: '
-            elif self.__label == self.__response:
+            elif self.__response == self.__label != self.__answer:
                 message = 'You chose: '
-            elif self.__label == self.__answer:
+            elif self.__response != self.__label == self.__answer :
                 message = 'Correct choice: '
             else:
                 message = ''

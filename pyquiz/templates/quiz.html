@@ -1,3 +1,5 @@
+<h1>{{ quiz.title }}</h1>
+<p>{{ quiz.message |safe }}</p>
 <form method="POST">
   {% for q in quiz %}
   <h2>{{ q.question | safe }}</h2>

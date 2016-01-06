@@ -8,9 +8,9 @@ quizzes = [path2quiz(path) for path in files_by_tag('app')]
 def view_generator(quiz):
     def view():
         if request.method == 'POST':
-            quiz = rq2quiz(request)
-            results = check(quiz, rq2responses(request))
-            return render_template('quiz_corrected.html', quiz=quiz,
+            old_quiz = rq2quiz(request)
+            results = check(old_quiz, rq2responses(request))
+            return render_template('quiz_corrected.html', quiz=old_quiz,
                 results=results)
         return render_template('quiz.html', quiz=quiz)
     view.__name__ = quiz.name
