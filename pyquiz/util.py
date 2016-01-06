@@ -105,6 +105,7 @@ class Quiz(Quizzable):
     passed_message = 'Congratulations! You have passed with {percent}%. Here is\
     your code of completion: {code}'
     code_filter = lambda self, code: code % 35 == 2
+    shuffle_on_view = True
 
     def __init__(self, source, questions=(), threshold=90, name=None):
         """
@@ -182,6 +183,12 @@ class Quiz(Quizzable):
                         (i, path))
         return Quiz(path, [Question(d['q'], d['choices'][0], d['choices'])
             for d in questions])
+
+    def shuffle(self):
+        """shuffle questions and choices"""
+        for q in self.qs:
+            q.shuffle()
+        shuffle(self.qs)
 
     def terms(self):
         """Returns all vocabulary terms for a quiz"""
@@ -278,6 +285,9 @@ class Question(Quizzable):
         return Question(self.question, self.answer, self.__total,
             self.threshold, self.vocab, self.__settings, self.score)
 
+    def shuffle(self):
+        pass
+
     @staticmethod
     def from_json(json):
         """
@@ -367,13 +377,17 @@ class MultipleChoice(Question):
 
         self.__category = category
         self.choices = choices
-        self.__fields = None
+        self.__fields = []
 
     def fields(self):
         if not self.__fields:
             _type = 'radio' if self.__category == self.ONE_SELECTION else 'checkbox'
             self.__fields = [Field(self._id, _type, label=v, value=v) for v in self.choices]
         return self.__fields
+
+    def shuffle(self):
+        shuffle(self.__fields)
+        shuffle(self.choices)
 
     @staticmethod
     def from_json(json):
@@ -412,7 +426,7 @@ class MultipleChoice(Question):
             term_side = bool(int(random()))
         if not term:
             term = random_term()
-            used_terms.append(term)
+        used_terms.append(term)
         question, answer = tuple(term) if term_side else term[::-1]
         choices.append(answer)
         for i in range(min(num_choices, len(terms))):

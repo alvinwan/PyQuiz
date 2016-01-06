@@ -16,6 +16,8 @@ def view_generator(quiz):
             results = check(old_quiz, rq2responses(request))
             return render_template('quiz_corrected.html', quiz=old_quiz,
                 results=results)
+        if quiz.shuffle_on_view:
+            quiz.shuffle()  # TODO convert to hook decorator
         return render_template('quiz.html', quiz=quiz)
     view.__name__ = quiz.name
     return view
