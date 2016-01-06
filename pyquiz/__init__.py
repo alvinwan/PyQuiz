@@ -3,6 +3,10 @@ from .util import files_by_tag, check, rq2responses, rq2quiz, path2quiz
 
 app = Flask(__name__)
 
+@app.route('/')
+def index():
+    return '<p>Quiz app launched. Available quizzes:</p><ul>%s</ul>' % '\n'.join(['<li><a href="%s">%s</a></li>' % (quiz.url, quiz.name) for quiz in quizzes])
+
 quizzes = [path2quiz(path) for path in files_by_tag('app')]
 
 def view_generator(quiz):
