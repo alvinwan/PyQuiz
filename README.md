@@ -1,6 +1,8 @@
 # PyQuiz
 Quiz application with configurable completion codes
 
+Demonstration at [https://pyquiz.herokuapp.com](https://pyquiz.herokuapp.com)
+
 Quizzes can be created in two ways:
 - code an OOP representation of a quiz, using the Quiz class along with
   `Question` and/or vocabulary `Term` instances
