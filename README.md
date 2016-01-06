@@ -39,6 +39,7 @@ returns:
 was passed.
 1. `__total__(self)`, a float total for this quizzable
 
+
 **Standard Questions**
 
 A quiz with standard questions would resemble the following. Note that the
@@ -72,7 +73,7 @@ class YourQuiz(Quiz):
 
   def questions(self):
     """Returns an iterable of test questions."""
-    return [self.vocab.multipleChoice()*5]  # 5 randomly-generated MC questions
+    return self.vocab.multipleChoice()*5  # 5 randomly-generated MC questions
 ```
 
 `Question` instances take an additional `check` function as a keyword

@@ -6,6 +6,7 @@ simple, configurable quiz application
 @site: alvinwan.com
 """
 
+from flask import jsonify
 from random import random, getrandbits
 from markdown import markdown
 import os
@@ -104,7 +105,7 @@ class Quiz(Quizzable):
 
         self.code_filter = code_filter
         self.vocab = Vocabulary(self.terms())
-        self.qs = questions or self.questions()
+        self.qs = self.__questions(questions)
         self.name = name or self.__class__.__name__
         self.threshold = threshold
 
@@ -120,35 +121,42 @@ class Quiz(Quizzable):
         :return: new Quiz object
         """
         questions, question = [], {}
-        file_contents = open(path, 'r').read()
-        for i, line in enumerate(filter(bool, file_contents.splitlines())):
-            if line.startswith('Q:'):
-                if question:
-                    questions.append(question)
-                    question = {}
-                question['q'] = line[2:]
-            elif line[0] in ('-', '*'):
-                question['a'].setdefault([]).append(line[1:].strip())
-            else:
-                raise SyntaxError('Line %d in %s not a supported format.' % \
-                    (i, path))
+        with open(path, 'r').read() as f:
+            for i, line in enumerate(filter(bool, f.readlines())):
+                if line.startswith('Q:'):
+                    if question:
+                        questions.append(question)
+                        question = {}
+                    question['q'] = line[2:]
+                elif line[0] in ('-', '*'):
+                    question['a'].setdefault([]).append(line[1:].strip())
+                else:
+                    raise SyntaxError('Line %d in %s not a supported format.' % \
+                        (i, path))
         return Quiz([Question(d['q'], *d['a']) for d in questions])
 
     def terms(self):
         """Returns all vocabulary terms for a quiz"""
         return []
 
+    def __questions(self, questions=(), regenerate=False):
+        """Returns all question if not already accessed."""
+        if not questions and getattr(self, 'qs', None) and not regenerate:
+            questions = self.qs
+        questions = self.questions()
+        for i, q in enumerate(questions):
+            q._id = 'q%d' % i
+        return questions
+
     def questions(self):
         """Returns all questions for a quiz"""
-        if self.qs:
-            return self.qs
         raise NotImplementedError()
 
     def __check__(self, responses):
         """Checks answers and returns JSON results"""
         if isinstance(responses, str):
             responses = [responses]
-        for q, response in zip(self.qs, responses):
+        for q, response in zip(self.__questions(), responses):
             check(q, response)
         return {
             'score': score(self),
@@ -158,23 +166,18 @@ class Quiz(Quizzable):
 
     def __score__(self):
         """Compute score for quiz"""
-        return sum(map(score, self.qs))
+        return sum(map(score, self.__questions()))
 
     def __total__(self):
         """Compute total for quiz"""
-        return sum(map(total, self.qs))
+        return sum(map(total, self.__questions()))
 
     def __passing__(self):
         """Returns if quiz passed"""
         return score(self)/total(self)*100 >= self.threshold
 
-    def to_json(self):
-        """converts quiz to JSON"""
-        raise NotImplementedError()
-
-    def to_html(self):
-        """converts quiz to HTML"""
-        raise NotImplementedError()
+    def __iter__(self):
+        return iter(self.__questions())
 
     def generate_code(self):
         """Generates hash code that matches the given code_filter"""
@@ -187,12 +190,12 @@ class Quiz(Quizzable):
 
 
 class Question(Quizzable):
-    """base Question class"""
+    """base Question class for a 'fill-in-the-blank'-style question"""
 
     def __init__(self, question, answer, total=1, threshold=100, vocab=None,
         settings=None, score=lambda answer, response: int(answer == response)):
 
-        self.question = question
+        self.__question = question
         self.answer = answer
         self.score = score
         self.__score = None
@@ -200,6 +203,13 @@ class Question(Quizzable):
         self.__settings = settings or {}
         self.vocab = vocab
         self.threshold = threshold
+
+    @property
+    def question(self):
+        md = markdown(self.__question)
+        if md.startswith('<p>'):
+            md = md[3:-4]
+        return md
 
     def copy(self):
         return Question(self.question, self.answer, self.__total,
@@ -232,52 +242,80 @@ class Question(Quizzable):
             return [self.copy() for _ in range(n)]
         return [self.fromVocab(self.vocab, **self.__settings) for _ in range(n)]
 
-    def to_json(self, suffix=''):
-        """Converts question object to JSON"""
-        raise NotImplementedError()
+    def fields(self):
+        """Returns iterable of fields for user input"""
+        return [Field(self._id, 'text')]
 
-    def to_html(self):
-        """converts question to HTML"""
-        raise NotImplementedError()
-
-    def __str__(self):
-        """converts question to HTML"""
-        return self.to_html()
 
 class MultipleChoice(Question):
     """multiple choice question"""
 
-    def __init__(self, question, options,
-        score=lambda options, response: options[0] == response, **kwargs):
-        super(MultipleChoice, self).__init__(question, options, score=score, **kwargs)
+    ONE_SELECTION = 'one selection'
+    MULTIPLE_SELECTIONS = 'multiple selections'
+
+    def __init__(self, question, choices, category=ONE_SELECTION,
+        score=lambda choices, response: choices[0] == response, **kwargs):
+        super(MultipleChoice, self).__init__(question, choices, score=score, **kwargs)
+        self.__category = category
+        self.choices = choices
+
+    def fields(self):
+        _type = 'radio' if self.__category == self.ONE_SELECTION else 'checkbox'
+        return [Field(self._id, _type, label=v, value=v) for v in self.choices]
 
     @staticmethod
-    def fromVocab(vocab, term=None, term_filter=lambda term: True, choices=5):
-        """Generate multiple choice.
+    def fromVocab(vocab, term=None, term_filter=lambda term: True,
+        num_choices=5, term_side=None):
+        """
+        Generate multiple choice.
 
         :param Term term: term to test
         :param function term_filter: filter to determine what terms are used
         :return: multiple choice Question
         """
-        args, used_terms = [], []
-        terms = list(filter(term_filter, self.terms))
+        choices, used_terms = [], []
+        terms = list(filter(term_filter, vocab.terms))
         random_term = lambda: terms[round(random() * (len(terms) - 1))]
-        term_side = bool(int(random()))
+        if not term_side:
+            term_side = bool(int(random()))
         if not term:
             term = random_term()
             used_terms.append(term)
-            args.append(tuple(term) if term_side else term[::-1])
-        for i in range(min(choices, len(terms))):
+        question, choice = tuple(term) if term_side else term[::-1]
+        choices.append(choice)
+        for i in range(min(num_choices, len(terms))):
             _term = random_term()
             while _term in used_terms:
                 _term = random_term()
             used_terms.append(_term)
-            args.append(_term[0 if term_side else 1])
-        return MultipleChoice(*args, vocab=vocab, settings={
-            'term': term,
+            choices.append(_term[0 if not term_side else 1])
+        return MultipleChoice(question, choices, vocab=vocab, settings={
             'term_filter': term_filter,
-            'choices': choices
+            'num_choices': num_choices,
+            'term_side': term_side
         })
+
+
+class Field:
+
+    def __init__(self, name, type_, label=None, **props):
+        self.__name = name
+        self.__type = type_
+        self.__props = props
+        self.__label = label
+
+    @property
+    def label(self):
+        md = markdown(self.__label)
+        if md.startswith('<p>'):
+            md = md[3:-4]
+        return md
+
+    def __str__(self):
+        return '<p><input type="%s" name="%s" %s>%s</p>' % (
+            self.__type, self.__name,
+            ' '.join('%s="%s"' % t for t in self.__props.items()),
+            self.label)
 
 
 class Vocabulary:
@@ -303,6 +341,7 @@ class Vocabulary:
     def __str__(self):
         return '\n'.join(map(str, self.terms))
 
+
 class Term:
     """Representation of a vocabulary term"""
 
@@ -321,6 +360,7 @@ class Term:
 
     def __str__(self):
         return '%s: %s' % tuple(self)
+
 
 def files_by_tag(tag):
     """Extracts files by tag from the configuration file.
@@ -343,14 +383,6 @@ def files_by_tag(tag):
             continue
     return files
 
-
-def md2quiz(md):
-    """Converts markdown to an HTML quiz.
-
-    :param str markdown: markdown
-    :return: HTML
-    """
-    return '<form method="POST">%s<input type="submit" value="submit quiz"></form>' % markdown(md, output_format='html5')
 
 def rq2responses(request):
     """Converts a request to a list of responses.

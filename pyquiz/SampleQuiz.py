@@ -14,5 +14,4 @@ class SampleQuiz(Quiz):
             Term('Mercurial', '![Mercurial](https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/New_Mercurial_logo.svg/2000px-New_Mercurial_logo.svg.png)')]
 
     def questions(self):
-        v = self.vocabulary
-        return [v.multiple_choice() for _ in range(5)]
+        return self.vocab.multipleChoice(term_side=False)*5
