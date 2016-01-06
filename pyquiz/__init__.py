@@ -1,29 +1,19 @@
 from flask import Flask, request, render_template
-from importlib import import_module
-from .util import files_by_tag, check, rq2responses
+from .util import files_by_tag, check, rq2responses, rq2quiz, path2quiz
 
 app = Flask(__name__)
 
-quizzes = []
-for path in files_by_tag('app'):
-    if path.endswith('.md'):
-        quizzes.append(Quiz.from_markdown(path))
-    else:
-        path = path.replace('.py', '')
-        classname = path.split('/')[-1]
-        module = import_module(path.replace('/', '.'))
-        Quiz = getattr(module, classname)
-        quizzes.append(Quiz())
+quizzes = [path2quiz(path) for path in files_by_tag('app')]
 
-def view_generator(q):
+def view_generator(quiz):
     def view():
         if request.method == 'POST':
-            results = check(q, rq2responses(request))
+            quiz = rq2quiz(request)
+            results = check(quiz, rq2responses(request))
             return render_template('quiz_corrected.html', quiz=quiz,
                 results=results)
-        print(quiz)
         return render_template('quiz.html', quiz=quiz)
-    view.__name__ = q.name
+    view.__name__ = quiz.name
     return view
 
 for quiz in quizzes:

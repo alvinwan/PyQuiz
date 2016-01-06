@@ -6,8 +6,9 @@ simple, configurable quiz application
 @site: alvinwan.com
 """
 
-from flask import jsonify
-from random import random, getrandbits
+from json import loads, dumps
+from random import random, getrandbits, shuffle
+from importlib import import_module
 from markdown import markdown
 import os
 
@@ -95,7 +96,7 @@ class Quizzable:
 class Quiz(Quizzable):
     """base quiz class"""
 
-    def __init__(self, questions=(), threshold=90, name=None,
+    def __init__(self, source, questions=(), threshold=90, name=None,
         code_filter=lambda code: True):
         """
         Default constructor
@@ -103,6 +104,7 @@ class Quiz(Quizzable):
         :param tuple questions: tuple of Questions
         """
 
+        self.source = source
         self.code_filter = code_filter
         self.vocab = Vocabulary(self.terms())
         self.qs = self.__questions(questions)
@@ -111,29 +113,57 @@ class Quiz(Quizzable):
 
     def copy(self):
         """returns new copy of quiz"""
-        return Quiz(self.qz, self.threshold, self.name, self.code_filter)
+        return Quiz(self.qs, self.threshold, self.name, self.code_filter)
+
+    @staticmethod
+    def from_json(json):
+        """
+        Create quiz object from json
+
+        :param json: JSON
+        :return: Quiz
+        """
+        data = loads(json)
+        return Quiz.from_dict({
+            'questions':[globals()[q['class']].from_dict(q)
+                for q in data['questions']],
+            'source': data['source']
+        })
+
+    @staticmethod
+    def from_dict(data):
+        """
+        Create quiz object from dictionary
+
+        :param dict data: data
+        :return: Quiz
+        """
+        return Quiz(**data)
 
     @staticmethod
     def from_markdown(path):
-        """Loads information from a markdown file.
+        """
+        Loads information from a markdown file.
 
         :param str path: path to .md file
         :return: new Quiz object
         """
         questions, question = [], {}
         with open(path, 'r').read() as f:
-            for i, line in enumerate(filter(bool, f.readlines())):
+            for i, line in enumerate(filter(bool, f)):
                 if line.startswith('Q:'):
                     if question:
                         questions.append(question)
                         question = {}
                     question['q'] = line[2:]
                 elif line[0] in ('-', '*'):
-                    question['a'].setdefault([]).append(line[1:].strip())
+                    question['choices'].setdefault([]).append(line[1:].strip())
                 else:
+                    # TODO: change to logger warning
                     raise SyntaxError('Line %d in %s not a supported format.' % \
                         (i, path))
-        return Quiz([Question(d['q'], *d['a']) for d in questions])
+        return Quiz(path, [Question(d['q'], d['choices'][0], d['choices'])
+            for d in questions])
 
     def terms(self):
         """Returns all vocabulary terms for a quiz"""
@@ -141,12 +171,13 @@ class Quiz(Quizzable):
 
     def __questions(self, questions=(), regenerate=False):
         """Returns all question if not already accessed."""
-        if not questions and getattr(self, 'qs', None) and not regenerate:
-            questions = self.qs
-        questions = self.questions()
-        for i, q in enumerate(questions):
-            q._id = 'q%d' % i
-        return questions
+        if questions:
+            self.qs = questions
+        elif not getattr(self, 'qs', None) or regenerate:
+            self.qs = self.questions()
+        for i, q in enumerate(self.qs):
+            q._id = Question.ID_FORMAT % i
+        return self.qs
 
     def questions(self):
         """Returns all questions for a quiz"""
@@ -188,9 +219,21 @@ class Quiz(Quizzable):
                 code = _code
         return code
 
+    def to_dict(self):
+        return {
+            'source': self.source,
+            'questions': [q.to_dict() for q in self.qs],
+        }
+
+    def to_json(self):
+        """dumps quiz"""
+        return dumps(self.to_dict())
+
 
 class Question(Quizzable):
     """base Question class for a 'fill-in-the-blank'-style question"""
+
+    ID_FORMAT = 'q%d'
 
     def __init__(self, question, answer, total=1, threshold=100, vocab=None,
         settings=None, score=lambda answer, response: int(answer == response)):
@@ -203,6 +246,7 @@ class Question(Quizzable):
         self.__settings = settings or {}
         self.vocab = vocab
         self.threshold = threshold
+        self.__fields = None
 
     @property
     def question(self):
@@ -215,9 +259,31 @@ class Question(Quizzable):
         return Question(self.question, self.answer, self.__total,
             self.threshold, self.vocab, self.__settings, self.score)
 
+    @staticmethod
+    def from_json(json):
+        """
+        Create quiz object from json
+
+        :param json: JSON
+        :return: Quiz
+        """
+        return Question.from_dict(loads(json))
+
+    @staticmethod
+    def from_dict(data):
+        """
+        Create quiz object from dictionary
+
+        :param dict data: data
+        :return: Quiz
+        """
+        return Question(data['question'], data['answer'])
+
     def __check__(self, response):
         """Checks answer and returns JSON of result."""
         self.__score = self.score(self.answer, response)
+        for field in self.fields():
+            check(field, self.answer, response)
         return {
             'score': score(self),
             'total': total(self),
@@ -244,7 +310,20 @@ class Question(Quizzable):
 
     def fields(self):
         """Returns iterable of fields for user input"""
-        return [Field(self._id, 'text')]
+        if not self.__fields:
+            self.__fields = [Field(self._id, 'text')]
+        return self.__fields
+
+    def to_dict(self):
+        """dumps question"""
+        return {
+            'question': self.__question,
+            'answer': self.answer,
+            'class': 'Question'
+        }
+
+    def to_json(self):
+        return dumps(self.to_dict())
 
 
 class MultipleChoice(Question):
@@ -253,15 +332,49 @@ class MultipleChoice(Question):
     ONE_SELECTION = 'one selection'
     MULTIPLE_SELECTIONS = 'multiple selections'
 
-    def __init__(self, question, choices, category=ONE_SELECTION,
+    def __init__(self, question, answer, choices, category=ONE_SELECTION,
+        total=1, threshold=100, vocab=None, settings=None,
         score=lambda choices, response: choices[0] == response, **kwargs):
         super(MultipleChoice, self).__init__(question, choices, score=score, **kwargs)
+
+        self.__question = question
+        self.answer = answer
+        self.score = score
+        self.__score = None
+        self.__total = total
+        self.__settings = settings or {}
+        self.vocab = vocab
+        self.threshold = threshold
+
         self.__category = category
         self.choices = choices
+        self.__fields = None
 
     def fields(self):
-        _type = 'radio' if self.__category == self.ONE_SELECTION else 'checkbox'
-        return [Field(self._id, _type, label=v, value=v) for v in self.choices]
+        if not self.__fields:
+            _type = 'radio' if self.__category == self.ONE_SELECTION else 'checkbox'
+            self.__fields = [Field(self._id, _type, label=v, value=v) for v in self.choices]
+        return self.__fields
+
+    @staticmethod
+    def from_json(json):
+        """
+        Create question object from json
+
+        :param json: JSON
+        :return: Quiz
+        """
+        return MultipleChoice.from_dict(loads(json))
+
+    @staticmethod
+    def from_dict(data):
+        """
+        Create question object from dictionary
+
+        :param dict data: data
+        :return: Quiz
+        """
+        return MultipleChoice(data['question'], data['answer'], data['choices'])
 
     @staticmethod
     def fromVocab(vocab, term=None, term_filter=lambda term: True,
@@ -281,19 +394,27 @@ class MultipleChoice(Question):
         if not term:
             term = random_term()
             used_terms.append(term)
-        question, choice = tuple(term) if term_side else term[::-1]
-        choices.append(choice)
+        question, answer = tuple(term) if term_side else term[::-1]
+        choices.append(answer)
         for i in range(min(num_choices, len(terms))):
             _term = random_term()
             while _term in used_terms:
                 _term = random_term()
             used_terms.append(_term)
             choices.append(_term[0 if not term_side else 1])
-        return MultipleChoice(question, choices, vocab=vocab, settings={
+        return MultipleChoice(question, answer, choices, vocab=vocab, settings={
             'term_filter': term_filter,
             'num_choices': num_choices,
             'term_side': term_side
         })
+
+    def to_dict(self):
+        return {
+            'question': self.__question,
+            'answer': self.answer,
+            'choices': self.choices,
+            'class': 'MultipleChoice'
+        }
 
 
 class Field:
@@ -303,6 +424,7 @@ class Field:
         self.__type = type_
         self.__props = props
         self.__label = label
+        self.__checked = False
 
     @property
     def label(self):
@@ -311,11 +433,37 @@ class Field:
             md = md[3:-4]
         return md
 
-    def __str__(self):
+    def __check__(self, answer, response):
+        self.__checked = True
+        self.__response = response
+        self.__answer = answer
+
+    def display(self):
+        if self.__type in ('radio', 'checkbox'):
+            if self.__response == self.__answer:
+                message = 'Correct answer: '
+            elif self.__label == self.__response:
+                message = 'You chose: '
+            elif self.__label == self.__answer:
+                message = 'Correct choice: '
+            else:
+                message = ''
+            return '<p>%s%s</p>' % (message, self.__label)
+        else:
+            self.__props.update({
+                'value': response,
+                'readonly': 'readonly'
+            })
+            return self.input()
+
+    def input(self):
         return '<p><input type="%s" name="%s" %s>%s</p>' % (
             self.__type, self.__name,
             ' '.join('%s="%s"' % t for t in self.__props.items()),
             self.label)
+
+    def __str__(self):
+        return self.display() if self.__checked else self.input()
 
 
 class Vocabulary:
@@ -384,16 +532,39 @@ def files_by_tag(tag):
     return files
 
 
+def rq2quiz(request):
+    """
+    Extracts quiz from a request
+
+    :param request: Flask Request object
+    :return: Quiz object
+    """
+    q = Quiz.from_json(request.form['meta'])
+    return path2quiz(q.source, q.qs)
+
 def rq2responses(request):
-    """Converts a request to a list of responses.
+    """
+    Converts a request to a list of responses.
 
     :param request: Flask Request object
     :return: list of response strings
     """
-    name_format, i, responses = 'q%d', 0, [] # standardize
-    while True:
-        name = name_format % i
-        if name in request.form:
+    i, responses = 0, []
+    for i in range(int(request.form['num_questions'])):
+        name = Question.ID_FORMAT % i
+        if request.form.get(name, None):
             responses.append(request.form[name])
+        else:
+            responses.append('')
         i += 1
     return responses
+
+def path2quiz(path, *args, **kwargs):
+    if path.endswith('.md'):
+        return Quiz.from_markdown(path)
+    else:
+        path_ = path.replace('.py', '')
+        classname = path_.split('/')[-1]
+        module = import_module(path_.replace('/', '.'))
+        Quiz = getattr(module, classname)
+        return Quiz(path, *args, **kwargs)

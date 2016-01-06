@@ -53,8 +53,9 @@ class YourQuiz(Quiz):
   def questions(self):
     """Returns an iterable of test questions."""
     return [MultipleChoice(
-      'Calculate the slope of y = 2x+3',
-      [2, 3, 4, 5, 7])]  # assume 2 is the right answer
+      question = 'Calculate the slope of y = 2x+3',
+      answer = 2,
+      choices = [2, 3, 4, 5, 7])]
 ```
 
 **Vocabulary**
