@@ -11,7 +11,7 @@ color palette: http://paletton.com/#uid=12s0u0kl2lDaqwMfIqYqogivKaW
 p {
   font-size:1.25em;
 }
-p a, li a {
+p a, li a, b, strong, i, br {
   float:none;
 }
 a:hover {
