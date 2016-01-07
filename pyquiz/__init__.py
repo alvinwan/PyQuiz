@@ -1,5 +1,7 @@
 from flask import Flask, request, render_template
+from jinja2 import Environment
 from .util import files_by_tag, check, rq2responses, rq2quiz, path2quiz
+from markdown import markdown
 
 app = Flask(__name__)
 
@@ -25,3 +27,7 @@ def view_generator(quiz):
 for quiz in quizzes:
     app.add_url_rule(quiz.url, quiz.name, view_generator(quiz),
         methods=['GET', 'POST'])
+
+@app.template_filter('markdown')
+def md(s):
+    return markdown(s)

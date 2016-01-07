@@ -1,8 +1,25 @@
-<h1>{{ quiz.title }}</h1>
-<p>{{ quiz.message | safe }}</p>
-{% for q in quiz %}
-<h2>{{ q.question | safe }}</h2>
-  {% for field in q.fields() %}
-{{ field | safe }}
+{% extends "base.html" %}
+{% block content %}
+<header>
+  {{ quiz.title | markdown | safe }}
+  {{ quiz.message | markdown | safe }}
+</header>
+<form method="POST">
+  {% for q in quiz %}
+  <div class="question col-md-12">
+    <div class="col-md-4 q">
+    {{ q.question | markdown | safe }}
+    </div>
+    <div class="col-md-1"></div>
+    <div class="col-md-7 a">
+      <ul>
+      {% for field in q.fields() %}
+    {{ field | safe }}
+      {% endfor %}
+      </ul>
+    </div>
+  </div>
   {% endfor %}
-{% endfor %}
+  <a href="#" onclick="location.reload()" class="button end">Try Again</a>
+</form>
+{% endblock %}

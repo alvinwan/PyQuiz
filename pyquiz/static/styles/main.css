@@ -1,0 +1,136 @@
+/*
+color palette: http://paletton.com/#uid=12s0u0kl2lDaqwMfIqYqogivKaW
+*/
+* {
+  float:left;
+  margin:0;
+  padding:0;
+  font-family:'Lato';
+  position:relative;
+}
+p {
+  font-size:1.25em;
+}
+a:hover {
+  text-decoration:none;
+}
+header {
+  margin-bottom:5em;
+}
+.underline,input,.button {
+  transition:         0.3s ease;
+  -webkit-transition: 0.3s ease;
+  -moz-transition:    0.3s ease;
+  -o-transition:      0.3s ease;
+}
+body {
+  background-color:#FFF;
+}
+main.content {
+  box-sizing:border-box;
+  padding:50px 75px;
+}
+h1, h2 {
+  font-weight:300;
+}
+  h1 {
+    font-size:5em;
+    padding:0.3em 0;
+  }
+  h1 + p, h2 + p {
+    width:100%;
+  }
+input[type="radio"],input[type="checkbox"], input[type="text"], input[type="textarea"] {
+  border:2px solid #ccc;
+  background-color:#FFF;
+  -webkit-appearance:none;
+  -moz-appearance:none;
+  -o-appearance:none;
+}
+input[type="checkbox"], input[type="text"], input[type="textarea"] {
+  border-radius:0.25em;
+}
+input[type="radio"] {
+  border-radius:50%;
+}
+input[type="checkbox"], input[type="radio"] {
+  width:1em;
+  height:1em;
+}
+input[type="radio"]:checked,input[type="checkbox"]:checked, input[type="text"]:focus, input[type="textarea"]:focus {
+  border:2px solid #690;
+}
+.question .q img, .question .q h2 {
+  width:100%
+}
+.question .a {
+  padding:30px 0;
+}
+.question input {
+  margin-top:0.6em;
+}
+.question .choice {
+  padding:0.5em 0.75em 0.25em 0.75em;
+  border-bottom:2px solid rgba(0,0,0,0.1);
+  cursor:pointer;
+}
+  .question .choice * {
+    cursor:pointer;
+  }
+  .underline {
+    position:absolute;
+    top:100%;
+    left:0;
+    width:0%;
+    background-color: #690;
+    height:2px;
+    z-index:10;
+    display:inline-block;
+  }
+  .choice input:checked + .underline {
+    width:100%;
+  }
+.question label {
+  font-size:1.25em;
+  padding:0 0 0 0.5em;
+  line-height:1.5em;
+  font-weight:300;
+}
+.choice {
+  width:100%;
+}
+.button {
+  font-weight:400;
+  text-transform:uppercase;
+  font-size:1em;
+  padding:0.75em 2em;
+  border-radius:1.5em;
+  border:2px solid #eee;
+  background-color:transparent;
+  color:#666;
+  display:inline-block;
+  float:none;
+  outline:none;
+  -webkit-appearance:none;
+  -moz-appearance:none;
+  -o-appearance:none;
+}
+.button:hover {
+  border:2px solid #690;
+  color:#690;
+}
+form {
+  padding-bottom:5em;
+  text-align:center;
+}
+  .button.end {
+    margin-top:3em;
+  }
+code {
+  width:100%;
+  background-color:#eee;
+  border:1px solid #ccc;
+  border-radius:2px;
+  margin:0.5em 0;
+  padding:1em;
+}

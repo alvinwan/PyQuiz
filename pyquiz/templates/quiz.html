@@ -1,13 +1,27 @@
-<h1>{{ quiz.title }}</h1>
-<p>{{ quiz.message |safe }}</p>
+{% extends "base.html" %}
+{% block content %}
+<header>
+  {{ quiz.title | markdown | safe }}
+  {{ quiz.message | markdown | safe }}
+</header>
 <form method="POST">
   {% for q in quiz %}
-  <h2>{{ q.question | safe }}</h2>
-    {% for field in q.fields() %}
-  {{ field | safe }}
-    {% endfor %}
+  <div class="question col-md-12">
+    <div class="col-md-4 q">
+    {{ q.question | markdown | safe }}
+    </div>
+    <div class="col-md-1"></div>
+    <div class="col-md-7 a">
+      <ul>
+      {% for field in q.fields() %}
+    {{ field | safe }}
+      {% endfor %}
+      </ul>
+    </div>
+  </div>
   {% endfor %}
   <input name="meta" value="{{ quiz.to_json() }}" type="hidden">
   <input name="num_questions" value="{{ quiz.qs | length }}" type="hidden">
-  <input type="submit" value="check">
+  <input type="submit" value="check" class="button end">
 </form>
+{% endblock %}

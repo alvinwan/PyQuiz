@@ -1,0 +1,22 @@
+<html>
+  <head>
+    <title>
+      {% block title %}
+      Quiz
+      {% endblock %}
+    </title>
+    <link href='https://fonts.googleapis.com/css?family=Lato:200,300' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/main.css') }}">
+    <script src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
+    <script src="{{ url_for('static', filename='scripts/main.js') }}"></script>
+  </head>
+  <body>
+    <div class="col-md-2"></div>
+    <main class="content col-md-8">
+    {% block content %}
+    {% endblock %}
+    </main>
+    <div class="col-md-2"></div>
+  </body>
+</html>

@@ -96,14 +96,14 @@ class Quizzable:
 class Quiz(Quizzable):
     """base quiz class"""
 
-    title = 'Quiz'
+    title = '# Quiz'
     initial_message = 'Click check at the end to check your work. You have \
     unlimited tries. Once you have passed, you will be given a custom code to \
     prove completion.'
     failed_message = 'You received {percent}%, but passing is {threshold}%. <a \
     href="#" onclick="location.reload()">Try again?</a>'
     passed_message = 'Congratulations! You have passed with {percent}%. Here is\
-    your code of completion: {code}'
+    your code of completion: <code>{code}</code>'
     code_filter = lambda self, code: code % 35 == 2
     shuffle_on_view = True
 
@@ -127,12 +127,18 @@ class Quiz(Quizzable):
 
     @property
     def message(self):
+        data = dict(
+            percent=(score(self) * 100) // total(self),
+            threshold=self.threshold,
+            code=self.generate_code()
+        ) if self.__checked else {}
         if not self.__checked:
-            return self.initial_message
-
-        percent = (score(self) * 100) // total(self)
-        return self.failed_message.format(percent=percent,
-            threshold=self.threshold) if not passing(self) else self.passed_message.format(percent=percent, code=self.generate_code())
+            message = self.initial_message
+        elif passing(self):
+            message = self.passed_message
+        else:
+            message = self.failed_message
+        return markdown(message.format(**data))
 
     @staticmethod
     def from_json(json):
@@ -265,6 +271,7 @@ class Question(Quizzable):
     """base Question class for a 'fill-in-the-blank'-style question"""
 
     ID_FORMAT = 'q%d'
+    QUESTION_FORMAT = '##%s'
 
     def __init__(self, question, answer, total=1, threshold=100, vocab=None,
         settings=None, score=lambda answer, response: int(answer == response)):
@@ -281,10 +288,7 @@ class Question(Quizzable):
 
     @property
     def question(self):
-        md = markdown(self.__question)
-        if md.startswith('<p>'):
-            md = md[3:-4]
-        return md
+        return markdown(self.QUESTION_FORMAT % self.__question)
 
     def copy(self):
         return Question(self.question, self.answer, self.__total,
@@ -486,7 +490,7 @@ class Field:
                 message = 'Correct choice: '
             else:
                 message = ''
-            return '<p>%s%s</p>' % (message, self.__label)
+            return '<li class="choice"><label>%s%s</label></li>' % (message, self.__label)
         else:
             self.__props.update({
                 'value': response,
@@ -495,7 +499,7 @@ class Field:
             return self.input()
 
     def input(self):
-        return '<p><input type="%s" name="%s" %s>%s</p>' % (
+        return '<li class="choice"><input type="%s" name="%s" %s><span class="underline"></span><label>%s</label></li>' % (
             self.__type, self.__name,
             ' '.join('%s="%s"' % t for t in self.__props.items()),
             self.label)
