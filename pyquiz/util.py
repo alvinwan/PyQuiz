@@ -245,6 +245,7 @@ class Quiz(Quizzable):
         return score(self)/total(self)*100 >= self.threshold
 
     def __iter__(self):
+        self.id_questions()
         return iter(self.__questions())
 
     def generate_code(self):
