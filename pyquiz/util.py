@@ -123,7 +123,7 @@ class Quiz(Quizzable):
 
     def copy(self):
         """returns new copy of quiz"""
-        return Quiz(self.qs, self.threshold, self.name, self.code_filter)
+        return Quiz(self.source, [q.copy() for q in self.qs], self.threshold, self.name)
 
     @property
     def message(self):

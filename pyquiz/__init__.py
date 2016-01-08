@@ -11,22 +11,23 @@ def index():
 
 quizzes = [path2quiz(path) for path in files_by_tag('app')]
 
-def view_generator(quiz):
+def view_generator(source, name):
     def view():
         if request.method == 'POST':
-            old_quiz = rq2quiz(request)
-            results = check(old_quiz, rq2responses(request))
-            return render_template('quiz_corrected.html', quiz=old_quiz,
+            quiz = rq2quiz(request)
+            results = check(quiz, rq2responses(request))
+            return render_template('quiz_corrected.html', quiz=quiz,
                 results=results)
+        quiz = path2quiz(source)
         if quiz.shuffle_on_view:
             quiz.shuffle()  # TODO convert to hook decorator
         return render_template('quiz.html', quiz=quiz)
-    view.__name__ = quiz.name
+    view.__name__ = name
     return view
 
 for quiz in quizzes:
-    app.add_url_rule(quiz.url, quiz.name, view_generator(quiz),
-        methods=['GET', 'POST'])
+    app.add_url_rule(quiz.url, quiz.name,
+        view_generator(quiz.source, quiz.name), methods=['GET', 'POST'])
 
 @app.template_filter('markdown')
 def md(s):
